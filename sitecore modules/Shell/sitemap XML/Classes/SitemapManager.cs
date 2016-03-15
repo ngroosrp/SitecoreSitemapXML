@@ -19,6 +19,7 @@
  *                                                                         *
  * *********************************************************************** */
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Xml;
@@ -32,6 +33,7 @@ using System.Text;
 using System.Linq;
 using System.Collections.Specialized;
 using System.Collections;
+using System.Data.Odbc;
 
 namespace Sitecore.Modules.SitemapXML
 {
@@ -59,7 +61,7 @@ namespace Sitecore.Modules.SitemapXML
         }
 
 
-        private void BuildSiteMap(string sitename, string sitemapUrlNew)
+        public virtual void BuildSiteMap(string sitename, string sitemapUrlNew)
         {
             Site site = Sitecore.Sites.SiteManager.GetSite(sitename);
             SiteContext siteContext = Factory.GetSite(sitename);
@@ -79,7 +81,7 @@ namespace Sitecore.Modules.SitemapXML
 
 
 
-        public bool SubmitSitemapToSearchenginesByHttp()
+        public virtual bool SubmitSitemapToSearchenginesByHttp()
         {
             if (!SitemapManagerConfiguration.IsProductionEnvironment)
                 return false;
@@ -106,7 +108,7 @@ namespace Sitecore.Modules.SitemapXML
             return result;
         }
 
-        public void RegisterSitemapToRobotsFile()
+        public virtual void RegisterSitemapToRobotsFile()
         {
             if (!SitemapManagerConfiguration.GenerateRobotsFile)
                 return;
@@ -133,7 +135,7 @@ namespace Sitecore.Modules.SitemapXML
             sw.Close();
         }
 
-        private string BuildSitemapXML(List<Item> items, Site site)
+        protected virtual string BuildSitemapXML(List<Item> items, Site site)
         {
             XmlDocument doc = new XmlDocument();
 
@@ -142,7 +144,15 @@ namespace Sitecore.Modules.SitemapXML
             XmlNode urlsetNode = doc.CreateElement("urlset");
             XmlAttribute xmlnsAttr = doc.CreateAttribute("xmlns");
             xmlnsAttr.Value = SitemapManagerConfiguration.XmlnsTpl;
+
+
+            // Specify xhtml namespace
+            //XmlAttribute xmlnsXhtml = doc.CreateAttribute("xmlns:xhtml");
+            XmlAttribute xmlnsXhtml = doc.CreateAttribute("xmlns:xhtml");
+            xmlnsXhtml.Value = "http://www.w3.org/1999/xhtml";
+
             urlsetNode.Attributes.Append(xmlnsAttr);
+            urlsetNode.Attributes.Append(xmlnsXhtml);
 
             doc.AppendChild(urlsetNode);
 
@@ -155,12 +165,13 @@ namespace Sitecore.Modules.SitemapXML
             return doc.OuterXml;
         }
 
-        private XmlDocument BuildSitemapItem(XmlDocument doc, Item item, Site site)
+        protected virtual XmlDocument BuildSitemapItem(XmlDocument doc, Item item, Site site)
         {
             string url = HtmlEncode(this.GetItemUrl(item, site));
             string lastMod = HtmlEncode(item.Statistics.Updated.ToString("yyyy-MM-ddTHH:mm:sszzz"));
 
             XmlNode urlsetNode = doc.LastChild;
+            
 
             XmlNode urlNode = doc.CreateElement("url");
             urlsetNode.AppendChild(urlNode);
@@ -169,6 +180,33 @@ namespace Sitecore.Modules.SitemapXML
             urlNode.AppendChild(locNode);
             locNode.AppendChild(doc.CreateTextNode(url));
 
+
+
+            foreach (var l in item.Languages)
+            {
+                // check item.Versions
+
+
+                XmlNode linkNode = doc.CreateElement("xhtml", "link", "http://www.w3.org/1999/xhtml");
+
+                string langParam = "/" + item.Language.ToString();
+                string relatedLangParam = "/" + l.ToString();
+                string relatedUrl = url.Replace(langParam, relatedLangParam);
+
+                XmlAttribute alternate = doc.CreateAttribute("rel");
+                alternate.Value = "alternate";
+                XmlAttribute hrefLang = doc.CreateAttribute("hreflang");
+                hrefLang.Value = l.ToString();
+                XmlAttribute href = doc.CreateAttribute("href");
+                href.Value = relatedUrl;
+
+                linkNode.Attributes.Append(alternate);
+                linkNode.Attributes.Append(hrefLang);
+                linkNode.Attributes.Append(href);
+
+                urlNode.AppendChild(linkNode);
+            }
+
             XmlNode lastmodNode = doc.CreateElement("lastmod");
             urlNode.AppendChild(lastmodNode);
             lastmodNode.AppendChild(doc.CreateTextNode(lastMod));
@@ -176,7 +214,7 @@ namespace Sitecore.Modules.SitemapXML
             return doc;
         }
 
-        private string GetItemUrl(Item item, Site site)
+        protected virtual string GetItemUrl(Item item, Site site)
         {
             Sitecore.Links.UrlOptions options = Sitecore.Links.UrlOptions.DefaultOptions;
 
@@ -240,7 +278,7 @@ namespace Sitecore.Modules.SitemapXML
             return result;
         }
 
-        private void SubmitEngine(string engine, string sitemapUrl)
+        protected virtual void SubmitEngine(string engine, string sitemapUrl)
         {
             //Check if it is not localhost because search engines returns an error
             if (!sitemapUrl.Contains("http://localhost"))
@@ -266,7 +304,7 @@ namespace Sitecore.Modules.SitemapXML
         }
 
 
-        private List<Item> GetSitemapItems(string rootPath)
+        protected virtual List<Item> GetSitemapItems(string rootPath)
         {
             string disTpls = SitemapManagerConfiguration.EnabledTemplates;
             string exclNames = SitemapManagerConfiguration.ExcludeItems;
