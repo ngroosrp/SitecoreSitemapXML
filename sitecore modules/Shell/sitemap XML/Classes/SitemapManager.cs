@@ -145,9 +145,6 @@ namespace Sitecore.Modules.SitemapXML
             XmlAttribute xmlnsAttr = doc.CreateAttribute("xmlns");
             xmlnsAttr.Value = SitemapManagerConfiguration.XmlnsTpl;
 
-
-            // Specify xhtml namespace
-            //XmlAttribute xmlnsXhtml = doc.CreateAttribute("xmlns:xhtml");
             XmlAttribute xmlnsXhtml = doc.CreateAttribute("xmlns:xhtml");
             xmlnsXhtml.Value = "http://www.w3.org/1999/xhtml";
 
@@ -155,7 +152,6 @@ namespace Sitecore.Modules.SitemapXML
             urlsetNode.Attributes.Append(xmlnsXhtml);
 
             doc.AppendChild(urlsetNode);
-
 
             foreach (Item itm in items)
             {
@@ -180,18 +176,14 @@ namespace Sitecore.Modules.SitemapXML
             urlNode.AppendChild(locNode);
             locNode.AppendChild(doc.CreateTextNode(url));
 
-
-
             foreach (var l in item.Languages)
             {
-                // check item.Versions
-
-
                 XmlNode linkNode = doc.CreateElement("xhtml", "link", "http://www.w3.org/1999/xhtml");
 
                 string langParam = "/" + item.Language.ToString();
                 string relatedLangParam = "/" + l.ToString();
-                string relatedUrl = url.Replace(langParam, relatedLangParam);
+                int langIndex = url.IndexOf(langParam);
+                string relatedUrl = url.Substring(0, langIndex) + relatedLangParam + url.Substring(langIndex + langParam.Length);
 
                 XmlAttribute alternate = doc.CreateAttribute("rel");
                 alternate.Value = "alternate";
